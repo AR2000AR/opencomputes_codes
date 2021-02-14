@@ -12,15 +12,30 @@ DESCIPTION
     rawCBdata : see man libCB
 
   Method list
+
     getCredit(cbData):int,int
+      Get the current solde of the account
+
     makeTransaction(uuid_cible,cbData,amount):int
+      Transfer a certain amount form the account provided by the credit card data to the account whose number has been given as the first parameter.
 
     createAccount():int,sting
+      Ask for a new account. You need a authorized client.
+      Return the account number (uuid) as a string
+      
     requestNewCBdata(accountUUID,cbUUID):int:string:rawCBdata
+      Ask for the raw data to write a new credit card. You need a authorized client.
 
     editAccount(cbData,amount):int
-      Add amount to the account. If amount is < 0 It will be removed form the account
+      Add amount to the account. If amount is < 0 It will be removed form the account. You need a authorized client.
       A account cant have a negative solde.
+
+    getInfo(cbData,tag):int,string
+      Request a account info to the server. If the info is private you will need a authorized client.
+
+    setInfo(cbData,tag,value,private):int,string
+      Set a account info. You need a authorized client.
+      If the "private" parameter is true, reading the value will require a authorized client.
 
     setModemTimeout(t)
 

@@ -38,6 +38,8 @@ local PROTOCOLE_MAKE_TRANSACTION = "MAKE_TRANSACTION"
 local PROTOCOLE_NEW_ACCOUNT = "NEW_ACCOUNT"
 local PROTOCOLE_NEW_CB = "NEW_CB"
 local PROTOCOLE_EDIT = "EDIT"
+local PROTOCOLE_GET_INFO = "GINFO"
+local PROTOCOLE_SET_INFO = "SINFO"
 --protocole status constants
 local PROTOCOLE_OK = 0
 local PROTOCOLE_NO_ACCOUNT = 1
@@ -46,6 +48,7 @@ local PROTOCOLE_ERROR_CB = 3
 local PROTOCOLE_ERROR_AMOUNT = 4
 local PROTOCOLE_DENIED = 4
 local PROTOCOLE_ERROR_RECEIVING_ACCOUNT = 5
+local PROTOCOLE_INFO_NOT_FOUND = 6
 local PROTOCOLE_ERROR_UNKNOWN = 999
 --=====================================
 local function reciveMessage() --recive a message from the modem component.
@@ -163,6 +166,36 @@ function bank.editAccount(cbData,amount)
     return MODEM_TIMEDOUT
   else
     if(command ~= PROTOCOLE_EDIT) then
+      return -2 --wrong message
+    else
+      return status
+    end
+  end
+end
+
+function bank.getInfo(cbData,tag)
+  local status,command,msg = sendRequest(PROTOCOLE_GET_INFO,{secret=config.secret,cbData=cbData,tag=tag})
+  if(status == MODEM_TIMEDOUT) then
+    return MODEM_TIMEDOUT
+  else
+    if(command ~= PROTOCOLE_GET_INFO) then
+      return -2 --wrong message
+    else
+      if(status == PROTOCOLE_OK) then
+        return status,msg.value
+      else
+        return status
+      end
+    end
+  end
+end
+
+function bank.setInfo(cbData,tag,value,private)
+  local status,command = sendRequest(PROTOCOLE_SET_INFO,{secret=config.secret,cbData=cbData,tag=tag,value=value,private=private})
+  if(status == MODEM_TIMEDOUT) then
+    return MODEM_TIMEDOUT
+  else
+    if(command ~= PROTOCOLE_SET_INFO) then
       return -2 --wrong message
     else
       return status

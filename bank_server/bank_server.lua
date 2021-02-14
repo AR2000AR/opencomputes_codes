@@ -1,4 +1,4 @@
---Bank server by AR2000AR=(AR2000)===
+--Bank server by AR2000AR (AR2000)===
 --
 --=====================================
 --IMPORT standard lib------------------
@@ -31,6 +31,8 @@ local PROTOCOLE_MAKE_TRANSACTION = "MAKE_TRANSACTION"
 local PROTOCOLE_NEW_ACCOUNT = "NEW_ACCOUNT"
 local PROTOCOLE_NEW_CB = "NEW_CB"
 local PROTOCOLE_EDIT = "EDIT"
+local PROTOCOLE_GET_INFO = "GINFO"
+local PROTOCOLE_SET_INFO = "SINFO"
 --protocole status constants
 local PROTOCOLE_OK = 0
 local PROTOCOLE_NO_ACCOUNT = 1
@@ -39,6 +41,7 @@ local PROTOCOLE_ERROR_CB = 3
 local PROTOCOLE_ERROR_AMOUNT = 4
 local PROTOCOLE_DENIED = 4
 local PROTOCOLE_ERROR_RECEIVING_ACCOUNT = 5
+local PROTOCOLE_INFO_NOT_FOUND = 6
 local PROTOCOLE_ERROR_UNKNOWN = 999
 ---------------------------------------
 
@@ -83,7 +86,6 @@ end
 -- @return {solde,uuid} or PROTOCOLE_NO_ACCOUNT or PROTOCOLE_ERROR_ACCOUNT
 local function loadAccount(accountUUID)
   log("-> loadAccount")
-  local account = {}
   if(fs.exists(accountDir..accountUUID)) then
     local file = io.open(accountDir..accountUUID,"r")
     local rawData = file:read("*a") --read the entire file
@@ -106,31 +108,88 @@ local function loadAccount(accountUUID)
 end
 
 -- write the account file
--- @param accountUUID:string
--- @param solde:int
-local function writeAccount(accountUUID,solde)
+-- @param accountData:table
+local function writeAccount(accountData)
   log("-> writeAccount")
-  local account = {solde=solde,uuid=accountUUID}
-  account.sig = dataCard.encode64(dataCard.ecdsa(solde..accountUUID,getKey(false))) --encode sig to make saving it easier
-  local fileContent = serialization.serialize(account) --convert the table into a string
+  accountData.sig = dataCard.encode64(dataCard.ecdsa(accountData.solde..accountData.uuid,getKey(false))) --encode sig to make saving it easier
+  local fileContent = serialization.serialize(accountData) --convert the table into a string
   fileContent = dataCard.encrypt(fileContent,getAES(),AES_IV) --encrypt the data
   fileContent = dataCard.encode64(fileContent) --encode the encrypted data to make saving and reading it easier
-  io.open(accountDir..accountUUID,"w"):write(fileContent):close() --save the data
+  io.open(accountDir..accountData.uuid,"w"):write(fileContent):close() --save the data
   log("<- writeAccount ")
 end
 
 -- handle account edition (check if the account exists and add amount to it's solde)
--- @param uuid:string
+-- @param accountUUID:string
 -- @param amount:ini
 -- @return boolean
-local function editAccount(accountUUID,amount)
+local function editSolde(accountUUID,amount)
   local account = loadAccount(accountUUID)
   if(account == PROTOCOLE_NO_ACCOUNT or account == PROTOCOLE_ERROR_ACCOUNT) then --check for errors with the account
     return false --give up
   else
-    writeAccount(account.uuid,account.solde + amount)
+    account.solde = account.solde + amount
+    writeAccount(account)
     return true
   end
+end
+
+-- return an information in the account.
+-- @param address:string
+-- @param accountUUID:string
+-- @param tag:string
+-- @param secret:boolean
+-- @return bool, string
+local function handlerGetInfo(address,accountUUID,tag,secret)
+  log("-> handlerGetInfo")
+  local accountData = loadAccount(accountUUID)
+  if(accountData == PROTOCOLE_NO_ACCOUNT or accountData == PROTOCOLE_ERROR_ACCOUNT) then --check for errors with the accountDir
+    sendMsg(address,accountData,PROTOCOLE_GET_INFO)
+  else
+    if(accountData.info) then --check for the info table (mostly for retrocompatibility)
+      if(accountData.info[tag]) then --check that the tag exists
+        if((accountData.info[tag].secret == true and secret) or accountData.info[tag].sercet == false) then
+          sendMsg(address,PROTOCOLE_OK,PROTOCOLE_GET_INFO,{value=accountData.info[tag].value})
+          log("  ok")
+        else
+          sendMsg(address,PROTOCOLE_DENIED,PROTOCOLE_GET_INFO)
+          log("  denied")
+        end
+      else
+        sendMsg(address,PROTOCOLE_INFO_NOT_FOUND,PROTOCOLE_GET_INFO)
+        log("  not found")
+      end
+    end
+  end
+  log("<- handlerGetInfo")
+end
+
+-- handle info edition
+-- @param address:string
+-- @param accountUUID:string
+-- @param tag:string
+-- @param value:string
+-- @param secret:boolean
+local function handlerSetInfo(address,accountUUID,tag,value,private,secret)
+  log("-> hanglerSetInfo")
+  if(secret==true)then
+    local accountData = loadAccount(accountUUID)
+    if(accountData == PROTOCOLE_NO_ACCOUNT or accountData == PROTOCOLE_ERROR_ACCOUNT) then --check for errors with the accountDir
+      sendMsg(address,accountData,PROTOCOLE_SET_INFO)
+    else
+      if(not accountData.info) then --check for the info table (mostly for retrocompatibility)
+        accountData.info = {}
+        log("  add info table")
+      end
+      accountData.info[tag] = {value=value,secret=secret}
+      writeAccount(accountData)
+      sendMsg(address,PROTOCOLE_OK,PROTOCOLE_SET_INFO)
+      log("  ok")
+    end
+  else
+    sendMsg(address,PROTOCOLE_DENIED,PROTOCOLE_SET_INFO)
+  end
+  log("<- handlerSetInfo")
 end
 
 -- handle account creation
@@ -150,7 +209,7 @@ local function handlerMakeTransaction(address,from,to,amount)
       if(toAccount == PROTOCOLE_NO_ACCOUNT or toAccount == PROTOCOLE_ERROR_ACCOUNT) then --check for errors with the second account
         sendMsg(address,PROTOCOLE_ERROR_RECEIVING_ACCOUNT,PROTOCOLE_MAKE_TRANSACTION)
       else
-        if(editAccount(fromAccount.uuid,(-1*math.abs(amount))) and editAccount(toAccount.uuid,(math.abs(amount)))) then
+        if(editSolde(fromAccount.uuid,(-1*math.abs(amount))) and editSolde(toAccount.uuid,(math.abs(amount)))) then
           sendMsg(address,PROTOCOLE_OK,PROTOCOLE_MAKE_TRANSACTION)
         else
           sendMsg(address,PROTOCOLE_ERROR_UNKNOWN,PROTOCOLE_MAKE_TRANSACTION)
@@ -174,7 +233,7 @@ local function handlerCreateAccount(address,secret)
     repeat
       newUUID = uuid.next()
     until not fs.exists(accountDir..newUUID)
-    writeAccount(newUUID,0)
+    writeAccount({solde=0,uuid=newUUID,info={}})
     sendMsg(address,PROTOCOLE_OK,PROTOCOLE_NEW_ACCOUNT,{uuid=newUUID})
   else
     log("secret error")
@@ -231,14 +290,14 @@ local function handlerEditBalance(address,secret,targetUUID,amount)
         if(account.solde < math.abs(amount)) then
           sendMsg(address,PROTOCOLE_ERROR_AMOUNT,PROTOCOLE_EDIT)
         else
-          if(editAccount(account.uuid,amount)) then
+          if(editSolde(account.uuid,amount)) then
             sendMsg(address,PROTOCOLE_OK,PROTOCOLE_EDIT)
           else
             sendMsg(address,PROTOCOLE_ERROR_UNKNOWN,PROTOCOLE_EDIT)
           end
         end
       else
-        if(editAccount(account.uuid,amount)) then
+        if(editSolde(account.uuid,amount)) then
           sendMsg(address,PROTOCOLE_OK,PROTOCOLE_EDIT)
         else
           sendMsg(address,PROTOCOLE_ERROR_UNKNOWN,PROTOCOLE_EDIT)
@@ -258,7 +317,7 @@ local function listener(sig,local_add,remote_add,port,dist,command,arg)
   if(port ~= SERVER_PORT) then return end --check if the port is the correct one
   if(not command or not arg) then return end --check if a parameter is missing
 
-  log("==> "..remote_add.." "..command.." "..arg)
+  log("==> "..remote_add.." | "..command.." | "..arg)
   arg = serialization.unserialize(arg)
   -------------------------------------
   if(command == PROTOCOLE_GET_CREDIT) then
@@ -287,6 +346,22 @@ local function listener(sig,local_add,remote_add,port,dist,command,arg)
   elseif(command == PROTOCOLE_EDIT) then
     if(cb.checkCBdata(arg.cbData,getKey(true))) then
       handlerEditBalance(remote_add,arg.secret,arg.cbData.uuid,arg.amount)
+    else
+      log("PROTOCOLE_EDIT : error cb")
+      sendMsg(remote_add,PROTOCOLE_ERROR_CB,command)
+    end
+  -------------------------------------
+  elseif(command == PROTOCOLE_GET_INFO) then
+    if(cb.checkCBdata(arg.cbData,getKey(true))) then
+      handlerGetInfo(remote_add,arg.cbData.uuid,arg.tag,dataCard.ecdsa(remote_add,getKey(true),arg.secret))
+    else
+      log("PROTOCOLE_EDIT : error cb")
+      sendMsg(remote_add,PROTOCOLE_ERROR_CB,command)
+    end
+  -------------------------------------
+  elseif(command == PROTOCOLE_SET_INFO) then
+    if(cb.checkCBdata(arg.cbData,getKey(true))) then
+      handlerSetInfo(remote_add,arg.cbData.uuid,arg.tag,arg.value,arg.private,dataCard.ecdsa(remote_add,getKey(true),arg.secret))
     else
       log("PROTOCOLE_EDIT : error cb")
       sendMsg(remote_add,PROTOCOLE_ERROR_CB,command)
