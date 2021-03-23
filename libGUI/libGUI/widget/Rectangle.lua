@@ -1,17 +1,17 @@
 local gpu = require("component").gpu
 
 local Rectangle = require("libClass").newClass("Rectangle",require("libGUI/widget/Widget"))
-Rectangle.private.width = 1
-Rectangle.private.height = 1
-Rectangle.private.color = 0
-Rectangle.setWidth = function(self,width) self.private.width = width or self:getWidth() end
-Rectangle.setHeight = function(self,height) self.private.height = height or self:getHeight() end
+Rectangle._width = 1
+Rectangle._height = 1
+Rectangle._color = 0
+Rectangle.setWidth = function(self,width) self._width = width or self:getWidth() end
+Rectangle.setHeight = function(self,height) self._height = height or self:getHeight() end
 Rectangle.setSize = function(self,width,height) self:setWidth(width) self:setHeight(height) end
-Rectangle.setColor = function(self,color) self.private.color =  color or self:getColor() end
-Rectangle.getWidth = function(self) return self.private.width end
-Rectangle.getHeight = function(self) return self.private.height end
+Rectangle.setColor = function(self,color) self._color =  color or self:getColor() end
+Rectangle.getWidth = function(self) return self._width end
+Rectangle.getHeight = function(self) return self._height end
 Rectangle.getSize = function(self) return self:getWidth(), self:getHeight() end
-Rectangle.getColor = function(self) return self.private.color end
+Rectangle.getColor = function(self) return self._color end
 Rectangle.constructor = function(self,x,y,width,height,color) self:setWidth(width) self:setHeight(height) self:setColor(color) end
 Rectangle.collide = function(self,x,y)
   local wx1,wy1 = self:getPos()

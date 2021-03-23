@@ -14,10 +14,10 @@ Screen.addChild = function(self,child)
   end
 end
 Screen.trigger = function(self,...)
-  if(self:isEnabled()) then self.private.clickHandler(self,...) end
+  if(self:isEnabled()) then self._clickHandler(self,...) end
 end
 Screen.private = {visible = true,enabled = true}
-Screen.private.clickHandler = function(self,eventName,uuid,x,y)
+Screen._clickHandler = function(self,eventName,uuid,x,y)
   if(eventName == "touch") then --filter only "touch" events
     for _,widget in ipairs(self.childs) do
       if(libClass.instanceOf(widget,Widget)) then
@@ -30,10 +30,10 @@ Screen.private.clickHandler = function(self,eventName,uuid,x,y)
     end
   end
 end
-Screen.setVisible = function(self,visible) self.private.visible = visible end
-Screen.isVisible = function(self) return self.private.visible end
-Screen.enable = function(self,enable) self.private.enabled = enable end
-Screen.isEnabled = function(self) return self.private.enabled end
+Screen.setVisible = function(self,visible) self._visible = visible end
+Screen.isVisible = function(self) return self._visible end
+Screen.enable = function(self,enable) self._enabled = enable end
+Screen.isEnabled = function(self) return self._enabled end
 Screen.draw = function(self)
   for _,widget in ipairs(self.childs) do
     if(widget:isVisible()) then widget:draw() end

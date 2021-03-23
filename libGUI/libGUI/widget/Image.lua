@@ -16,6 +16,7 @@ Image.getSize = function(self) return self.imageData:getSize() end
 Image.setWidth = function(self) error("Can change a image size",2) end
 Image.setHeight = function(self) error("Can change a image size",2) end
 Image.setSize = function(self) error("Can change a image size",2) end
+
 Image.draw = function(self)
   local background = gpu.getBackground()
   for deltaX, column in ipairs(self.imageData:getPixel()) do
