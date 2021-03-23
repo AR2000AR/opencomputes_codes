@@ -34,3 +34,5 @@ function TextInput._callback(self,...)
     self:setFocused(false)
   end
 end
+
+return TextInput
