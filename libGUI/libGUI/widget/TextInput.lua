@@ -23,6 +23,7 @@ function TextInput._callback(self,...)
           self:setText(string.sub(self:getText(),1,-2))
         end
       end
+      self:draw()
     end)
     -- if we detect a other click we want to loose focus
     self._touchEventListenerId = event.listen("touch",function(...) self:tirgger() end)
