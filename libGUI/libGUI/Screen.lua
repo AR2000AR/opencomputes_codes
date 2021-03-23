@@ -1,10 +1,19 @@
 local libClass = require("libClass")
 local Widget = require("libGUI/widget/Widget")
 local Rectangle = require("libGUI/widget/Rectangle")
+local event = require("event")
 
 local Screen = libClass.newClass("Screen")
+
 Screen.childs = {}
-Screen.addChild = function(self,child)
+Screen._visible = true
+Screen._enabled = true
+
+Screen._touchEventListenerId = -1
+--we need to be able to return the listener id so the main program can cancel it
+function Screen.getTouchEventListenerId(self) return self._touchEventListenerId end
+
+function Screen.addChild(self,child)
   if(not child.class) then
     error("arg #2 is not a class",2)
   elseif(not libClass.instanceOf(child,Widget) and not libClass.instanceOf(child,Screen)) then
@@ -13,11 +22,11 @@ Screen.addChild = function(self,child)
     table.insert(self.childs,child)
   end
 end
-Screen.trigger = function(self,...)
+function Screen.trigger(self,...)
   if(self:isEnabled()) then self._clickHandler(self,...) end
 end
-Screen.private = {visible = true,enabled = true}
-Screen._clickHandler = function(self,eventName,uuid,x,y)
+
+function Screen._clickHandler(self,eventName,uuid,x,y)
   if(eventName == "touch") then --filter only "touch" events
     for _,widget in ipairs(self.childs) do
       if(libClass.instanceOf(widget,Widget)) then
@@ -30,13 +39,19 @@ Screen._clickHandler = function(self,eventName,uuid,x,y)
     end
   end
 end
-Screen.setVisible = function(self,visible) self._visible = visible end
-Screen.isVisible = function(self) return self._visible end
-Screen.enable = function(self,enable) self._enabled = enable end
-Screen.isEnabled = function(self) return self._enabled end
-Screen.draw = function(self)
+function Screen.setVisible(self,visible) self._visible = visible end
+function Screen.isVisible(self) return self._visible end
+function Screen.enable(self,enable) self._enabled = enable end
+function Screen.isEnabled(self) return self._enabled end
+function Screen.draw(self)
   for _,widget in ipairs(self.childs) do
     if(widget:isVisible()) then widget:draw() end
+  end
+end
+
+function Screen.constructor(self,touchHandler)
+  if(touchHandler ~= nil touchHandler == true) then
+    self._touchEventListenerId = event.listen("touch",function(...) self:trigger(...) end)
   end
 end
 
