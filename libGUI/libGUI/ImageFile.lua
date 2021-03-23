@@ -126,7 +126,7 @@ end
 
 local ImageFile = Class.newClass("ImageFile")
 ImageFile.private = {property = {}, pixel = {}}
-ImageFile.getPixel = function(self,x,y)
+function ImageFile.getPixel(self,x,y)
   if(x) then
     if(x > #self.private.pixel) then error("x out of range",2) end
     if(y) then
@@ -138,7 +138,7 @@ ImageFile.getPixel = function(self,x,y)
     return deepcopy(self.private.pixel)
   end
 end
-ImageFile.open = function(self,path)
+function ImageFile.open(self,path)
   local imgTable = {}
   if(not (fs.exists(path) and not fs.isDirectory(path))) then
     error("No file with path : "..path,2)
@@ -153,9 +153,9 @@ ImageFile.open = function(self,path)
   self.private.property = imgTable.property
   self.private.pixel = imgTable.pixel
 end
-ImageFile.getWidth = function(self) return #self.private.pixel end
-ImageFile.getHeight = function(self) return #self.private.pixel[1] end
-ImageFile.getSize = function(self) return self:getWidth(), self:getHeight() end
-ImageFile.constructor = function(self,path) if(path) then self:open(path) end end
+function ImageFile.getWidth(self) return #self.private.pixel end
+function ImageFile.getHeight(self) return #self.private.pixel[1] end
+function ImageFile.getSize(self) return self:getWidth(), self:getHeight() end
+function ImageFile.constructor(self,path) if(path) then self:open(path) end end
 
 return ImageFile
