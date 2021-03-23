@@ -50,7 +50,7 @@ function Screen.draw(self)
 end
 
 function Screen.constructor(self,touchHandler)
-  if(touchHandler ~= nil touchHandler == true) then
+  if(touchHandler ~= nil and touchHandler == true) then
     self._touchEventListenerId = event.listen("touch",function(...) self:trigger(...) end)
   end
 end
