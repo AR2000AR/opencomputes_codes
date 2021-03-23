@@ -12,35 +12,35 @@ function Keypad.getWidth(self) return 9 end --fixed
 function Keypad.getHeight(self) return 11 end --fixed
 function Keypad.getSize(self) return self:getWidth(), self:getHeight() end
 
-Keypad.private.color = 0 --background color
-function Keypad.getColor(self) return self.private.color end
-function Keypad.setColor(self,color) self.private.color =  color or self:getColor() end
+Keypad._color = 0 --background color
+function Keypad.getColor(self) return self._color end
+function Keypad.setColor(self,color) self._color =  color or self:getColor() end
 
-Keypad.private.event = -1 --event listener id
+Keypad._event = -1 --event listener id
 
-Keypad.private.input = ""
-function Keypad.getInput(self) return self.private.input end
-function Keypad.clearInput(self) self.private.input = "" end
+Keypad._input = ""
+function Keypad.getInput(self) return self._input end
+function Keypad.clearInput(self) self._input = "" end
 
-Keypad.private.hide = false --should the input be replaced with '*'
-function Keypad.isInputHidden(self) return self.private.hide end
-function Keypad.hideInput(self,hide) if(type(hide) == "boolean") then self.private.hide = hide end end
+Keypad._hide = false --should the input be replaced with '*'
+function Keypad.isInputHidden(self) return self._hide end
+function Keypad.hideInput(self,hide) if(type(hide) == "boolean") then self._hide = hide end end
 
-Keypad.private.maxInputLen = -1 --maximum input length
-function Keypad.getMaxInputLen(self) return self.private.maxInputLen end
-function Keypad.setMaxInputLen(self,len) self.private.maxInputLen = len or self.private.maxInputLen end
+Keypad._maxInputLen = -1 --maximum input length
+function Keypad.getMaxInputLen(self) return self._maxInputLen end
+function Keypad.setMaxInputLen(self,len) self._maxInputLen = len or self._maxInputLen end
 
-function Keypad.private.validateCallback(self) end
-function Keypad.setValidateCallback(self,fct) if(type(fct) == "function") then self.private.validateCallback = fct end end
+function Keypad._validateCallback(self) end
+function Keypad.setValidateCallback(self,fct) if(type(fct) == "function") then self._validateCallback = fct end end
 
 function Keypad.enable(self,enable)
-  self.private.enabled = enable
-  if(self.private.event ~= -1) then --if a event listener is present
-    event.cancel(self.private.event) --cancel the event listener
-    self.private.event = -1 --set event to -1 (no listener)
+  self._enabled = enable
+  if(self._event ~= -1) then --if a event listener is present
+    event.cancel(self._event) --cancel the event listener
+    self._event = -1 --set event to -1 (no listener)
   end
   if(enable) then
-    self.private.event = event.listen("key_down",function(...) self:onKeyboard(...) end) --register a new event listerner
+    self._event = event.listen("key_down",function(...) self:onKeyboard(...) end) --register a new event listerner
   end
 end
 function Keypad.constructor(self,x,y,color,hide,maxInputLen)
@@ -56,23 +56,23 @@ function Keypad.collide(self,x,y)
   return ((x-wx1)*(wx2-x) >= 0 and (y-wy1)*(wy2-y) >= 0)
 end
 
-function Keypad.private.keyboardHandler(self,eventName,keyboardUUID,char,key,playerName)
+function Keypad._keyboardHandler(self,eventName,keyboardUUID,char,key,playerName)
   if(48<=char and char<=57)then
-    self.private.input = self.private.input..string.char(char)
+    self._input = self._input..string.char(char)
   elseif(char==8)then
-    self.private.input = self:getInput():sub(1,#self:getInput()-1)
+    self._input = self:getInput():sub(1,#self:getInput()-1)
   elseif(char==13) then --\n
-    self.private.validateCallback(self)
+    self._validateCallback(self)
   end
-  self.private.input = self.private.input:sub(1,self:getMaxInputLen())
+  self._input = self._input:sub(1,self:getMaxInputLen())
 end
 function Keypad.onKeyboard(self,...)
   --event.listen("key_up",function(...) keypad:onKeyboard(...) end)
-  self.private.keyboardHandler(self,...)
-  self.private.drawInput(self) --redraw the text field
+  self._keyboardHandler(self,...)
+  self._drawInput(self) --redraw the text field
 end
 
-function Keypad.private.screenHandler(self,eventName,ScreenUUID,x,y,button,playerName)
+function Keypad._screenHandler(self,eventName,ScreenUUID,x,y,button,playerName)
   local keys = {
     {'7','8','9'},
     {'4','5','6'},
@@ -85,21 +85,21 @@ function Keypad.private.screenHandler(self,eventName,ScreenUUID,x,y,button,playe
 
   if(x>=1 and x<=3 and y>=1 and y<=4) then --keys[y][x] might be null if the event is not on  a key
     if(keys[y][x] == 'X') then --if X got pressed
-      self.private.input = self:getInput():sub(1,#self:getInput()-1) --remove the last char from the input
+      self._input = self:getInput():sub(1,#self:getInput()-1) --remove the last char from the input
     elseif(keys[y][x] == 'V') then --if V got pressed
-      self.private.validateCallback(self)
+      self._validateCallback(self)
     else --a number got pressed
-      self.private.input = self.private.input..(keys[y][x])
+      self._input = self._input..(keys[y][x])
     end
   end
-  self.private.input = self.private.input:sub(1,self:getMaxInputLen()) --cut the string to the max input length
+  self._input = self._input:sub(1,self:getMaxInputLen()) --cut the string to the max input length
 end
-function Keypad.private.callback(self,...) --could have been named onKeyboard
-  self.private.screenHandler(self,...)
-  self.private.drawInput(self) --redraw the text field
+function Keypad._callback(self,...) --could have been named onKeyboard
+  self._screenHandler(self,...)
+  self._drawInput(self) --redraw the text field
 end
 
-function Keypad.private.drawInput(self)
+function Keypad._drawInput(self)
   if(not self:isVisible()) then return nil end --do nothing if the widget is not visible
   local oldBgColor = gpu.setBackground(0) --change the background color and save the old one to restore it later
   local oldFgColor = gpu.setForeground(0xffffff) --change the foreground color and save the old one to restore it later
@@ -131,7 +131,7 @@ function Keypad.draw(self)
   gpu.fill(self:getX(),self:getY(),self:getWidth(),self:getHeight()," ") --draw background
 
   --draw the text field
-  self.private.drawInput(self)
+  self._drawInput(self)
 
   --add the buttons
   gpu.setBackground(0)
